@@ -20,8 +20,5 @@ export default defineConfig({
             input,
         },
     },
-    define: {
-        __BUILD_NUMBER__: JSON.stringify(Date.now()),
-    },
     plugins: [react()],
 });

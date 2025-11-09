@@ -8,11 +8,15 @@ import PruebaComponent from "./components/pruebaComponent.tsx";
 
 
 import LanguageSelector from "./components/languageSelector.tsx";
-import { translation } from "../utils/languages.ts";
+import { createTranslationHook } from "../utils/languages.ts";
 
-const { t } = translation("index"); // This has to be the name of the main translation file from which the translations will be obtained
+// Create hook at module level - auto-registers namespace before render
+const useAppTranslation = createTranslationHook("index");
 
 function App() {
+    // Clean, single call - no repetition!
+    const t = useAppTranslation();
+
     const [selectedId, setSelectedId] = useState<string | number>("home");
 
     const [advancedGridItems, setAdvancedGridItems] = useState<IconListItem[]>([

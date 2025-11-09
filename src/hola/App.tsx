@@ -1,4 +1,7 @@
 import './App.css'
+import { translation } from "../utils/languages.ts";
+
+translation("hola");
 
 function App() {
 

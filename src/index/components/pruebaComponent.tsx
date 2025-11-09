@@ -1,13 +1,15 @@
-import { translation } from "../../utils/languages.ts";
+import { createTranslationHook } from "../../utils/languages.ts";
 
-// Get translator for "index" namespace and scope it to "iconListView"
-const { t } = translation("hola").scope("pruebaComponent").scope("title");
+// Create scoped hook at module level - auto-registers namespace
+const usePruebaTranslation = createTranslationHook("hola");
 
 export default function PruebaComponent() {
-
+    // Clean syntax - scope works perfectly
+    const t = usePruebaTranslation().scope("pruebaComponent").scope("title");
+    const userName = ". Samuel .";
     return (
         <div className="language-selector">
-            {t("text")}
+            {t("text", { name: userName })}
         </div>
     );
 }
