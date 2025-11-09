@@ -1,3 +1,3 @@
 Commands in the proyect:
  run `npx vite`(Run preview)
- run build`npx vite build`(Build)
+ run build`npx vite build; github`(Build)

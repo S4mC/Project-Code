@@ -1,4 +1,4 @@
-import { getCurrentLanguage, changeLanguage, AVAILABLE_LANGUAGES } from "../../languages.ts";
+import { getCurrentLanguage, changeLanguage, AVAILABLE_LANGUAGES } from "../../utils/languages.ts";
 
 export default function LanguageSelector() {
     const language = getCurrentLanguage();

@@ -12,10 +12,10 @@
         <script type="module">
             import React from "react";
             import { createRoot } from "react-dom/client";
-            import "./src/style.css";
+            import "./src/styles/style.css";
             import App from "./src/index/App.tsx";
 
-            import { initLanguages } from "./src/languages.ts";
+            import { initLanguages } from "./src/utils/languages.ts";
 
             const root = createRoot(document.getElementById("root"));
             initLanguages().then(() => {

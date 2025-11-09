@@ -29,7 +29,7 @@ function detectLanguage(): string {
     const saved = localStorage.getItem(LANG_KEY);
     if (saved && SUPPORTED_LANGS.includes(saved)) {
         // Verify the language has translation files available
-        const testPath = `../languages/${saved}/index.js`;
+        const testPath = `/languages/${saved}/index.js`;
         if (translationModules[testPath]) {
             return saved;
         }
@@ -44,7 +44,7 @@ function detectLanguage(): string {
 // Pre-register all translation modules with Vite (this lets Vite know about them at build time)
 // but we only load the specific one we need at runtime
 // Only register root-level files (not nested in folders) so Vite bundles imports together
-const translationModules = import.meta.glob<Record<string, Record<string, string>>>('../languages/*/*.js', { eager: false });
+const translationModules = import.meta.glob<Record<string, Record<string, string>>>('/languages/*/*.js', { eager: false });
 
 // Flatten nested objects into dot notation keys
 function flattenTranslations(obj: Record<string, unknown>, prefix = ""): Record<string, string> {
@@ -91,7 +91,7 @@ async function loadTranslations(lang: string, namespace: string): Promise<Record
     }
 
     // Always load from root-level files only (index.js, hola.js, etc.)
-    const moduleLoader = translationModules[`../languages/${lang}/${namespace}.js`];
+    const moduleLoader = translationModules[`/languages/${lang}/${namespace}.js`];
     
     if (!moduleLoader) {
         throw new Error(`Translation module not found for ${lang}/${namespace}.js`);

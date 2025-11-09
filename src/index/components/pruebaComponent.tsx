@@ -1,4 +1,4 @@
-import { translation } from "../../languages.ts";
+import { translation } from "../../utils/languages.ts";
 
 // Get translator for "index" namespace and scope it to "iconListView"
 const { t } = translation("hola").scope("pruebaComponent").scope("title");

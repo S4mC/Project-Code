@@ -8,7 +8,7 @@ import PruebaComponent from "./components/pruebaComponent.tsx";
 
 
 import LanguageSelector from "./components/languageSelector.tsx";
-import { translation } from "../languages.ts";
+import { translation } from "../utils/languages.ts";
 
 const { t } = translation("index"); // This has to be the name of the main translation file from which the translations will be obtained
 
