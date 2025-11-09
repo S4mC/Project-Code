@@ -2,13 +2,10 @@ import { useState } from "react";
 import "./App.css";
 import IconListView from "./components/IconListView.tsx";
 import type { IconListItem } from "./components/IconListView.tsx";
-
-
 import PruebaComponent from "./components/pruebaComponent.tsx";
-
-
 import LanguageSelector from "./components/languageSelector.tsx";
 import { createTranslationHook } from "../utils/languages.ts";
+import { FileExplorer, type FileSystemItem } from "./components/FileExplorerComplete.tsx";
 
 // Create hook at module level - auto-registers namespace before render
 const useAppTranslation = createTranslationHook("index");
@@ -76,9 +73,185 @@ function App() {
         },
     ]);
 
+    const sampleFileSystem: FileSystemItem[] = [
+        {
+            id: "1",
+            name: ".github",
+            type: "folder",
+            isExpanded: false,
+            children: [],
+        },
+        {
+            id: "2",
+            name: "dist",
+            type: "folder",
+            isExpanded: false,
+            children: [],
+        },
+        {
+            id: "3",
+            name: "languages",
+            type: "folder",
+            isExpanded: false,
+            children: [],
+        },
+        {
+            id: "4",
+            name: "public",
+            type: "folder",
+            isExpanded: false,
+            children: [],
+        },
+        {
+            id: "5",
+            name: "src",
+            type: "folder",
+            isExpanded: true,
+            children: [
+                {
+                    id: "6",
+                    name: "components",
+                    type: "folder",
+                    isExpanded: true,
+                    children: [
+                        {
+                            id: "7",
+                            name: "hola",
+                            type: "folder",
+                            isExpanded: false,
+                            children: [],
+                        },
+                        {
+                            id: "8",
+                            name: "index",
+                            type: "folder",
+                            isExpanded: true,
+                            children: [
+                                {
+                                    id: "9",
+                                    name: "assets",
+                                    type: "folder",
+                                    isExpanded: false,
+                                    children: [],
+                                },
+                                {
+                                    id: "10",
+                                    name: "components",
+                                    type: "folder",
+                                    isExpanded: true,
+                                    children: [
+                                        {
+                                            id: "11",
+                                            name: "IconListView.css",
+                                            type: "file",
+                                        },
+                                        {
+                                            id: "12",
+                                            name: "IconListView.tsx",
+                                            type: "file",
+                                        },
+                                        {
+                                            id: "13",
+                                            name: "languageSelector.tsx",
+                                            type: "file",
+                                        },
+                                        {
+                                            id: "14",
+                                            name: "pruebaComponent.tsx",
+                                            type: "file",
+                                        },
+                                    ],
+                                },
+                                {
+                                    id: "15",
+                                    name: "hooks",
+                                    type: "folder",
+                                    isExpanded: false,
+                                    children: [],
+                                },
+                                {
+                                    id: "16",
+                                    name: "utils",
+                                    type: "folder",
+                                    isExpanded: false,
+                                    children: [],
+                                },
+                                {
+                                    id: "17",
+                                    name: "App.css",
+                                    type: "file",
+                                },
+                                {
+                                    id: "18",
+                                    name: "App.tsx",
+                                    type: "file",
+                                },
+                            ],
+                        },
+                        {
+                            id: "19",
+                            name: "styles",
+                            type: "folder",
+                            isExpanded: false,
+                            children: [],
+                        },
+                        {
+                            id: "20",
+                            name: "utils",
+                            type: "folder",
+                            isExpanded: false,
+                            children: [],
+                        },
+                    ],
+                },
+            ],
+        },
+        {
+            id: "21",
+            name: ".gitignore",
+            type: "file",
+        },
+        {
+            id: "22",
+            name: "commands.md",
+            type: "file",
+        },
+        {
+            id: "23",
+            name: "hola.html",
+            type: "file",
+        },
+        {
+            id: "24",
+            name: "index.html",
+            type: "file",
+        },
+        {
+            id: "25",
+            name: "package.json",
+            type: "file",
+        },
+        {
+            id: "26",
+            name: "README.md",
+            type: "file",
+        },
+        {
+            id: "27",
+            name: "vite.config.ts",
+            type: "file",
+        },
+    ];
+
     const handleItemClick = (item: IconListItem) => {
         setSelectedId(item.id);
         console.log("Clic en:", item);
+    };
+
+    const handleFileItemClick = (item: FileSystemItem) => {
+        console.log("Clic en archivo/carpeta:", item);
+        // Aquí puedes hacer lo que necesites con el item
+        // Por ejemplo, abrir el archivo, expandir carpeta, etc.
     };
 
     return (
@@ -86,6 +259,8 @@ function App() {
             <PruebaComponent />
             <LanguageSelector />
             <span>{t("language") /* Language selector label */}</span>
+            <FileExplorer initialData={sampleFileSystem} onItemClick={handleFileItemClick} />
+
             <IconListView
                 items={advancedGridItems}
                 onItemClick={handleItemClick}
