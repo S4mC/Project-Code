@@ -5,7 +5,7 @@ import type { IconListItem } from "./components/IconListView.tsx";
 import PruebaComponent from "./components/pruebaComponent.tsx";
 import LanguageSelector from "./components/languageSelector.tsx";
 import { createTranslationHook } from "../utils/languages.ts";
-import { FileExplorer, type FileSystemItem } from "./components/FileExplorerComplete.tsx";
+import { FileExplorer, type FileSystemItem } from "./components/FileExplorer.tsx";
 
 // Create hook at module level - auto-registers namespace before render
 const useAppTranslation = createTranslationHook("index");
@@ -259,7 +259,24 @@ function App() {
             <PruebaComponent />
             <LanguageSelector />
             <span>{t("language") /* Language selector label */}</span>
-            <FileExplorer initialData={sampleFileSystem} onItemClick={handleFileItemClick} />
+            <FileExplorer 
+                initialData={sampleFileSystem} 
+                onItemClick={handleFileItemClick}
+                contextMenuOptions={{
+                    rename: {
+                        enabled: false,
+                    },
+                    createFile: {
+                        enabled: false,
+                    },
+                    createFolder: {
+                        enabled: false,
+                    },
+                    delete: {
+                        enabled: true,
+                    }
+                }}
+            />
 
             <IconListView
                 items={advancedGridItems}
