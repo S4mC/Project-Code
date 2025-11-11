@@ -13,8 +13,10 @@ export interface IconListItem {
     gridColumnStart?: number; // Starting position in columns (1-based)
     gridRowStart?: number; // Starting position in rows (1-based)
     iconSize?: "small" | "medium" | "large" | "xlarge"; // Icon size
+    iconLeft?: boolean; // Align icon to the left
     backgroundSvg?: string;
     textColor?: string; // Custom text color for the item
+    subtitleColor?: string; // Custom subtitle color for the item
     backgroundColor?: string; // Custom background color for the item
     backgroundImage?: string; // Background image for the item
     backgroundGradient?: string; // Background gradient for the item
@@ -35,8 +37,10 @@ interface IconListViewProps {
     gridColumns?: number; // Number of columns in the grid (default: 4)
     allowFixedItems?: boolean;
     iconSize?: "small" | "medium" | "large" | "xlarge"; // Global icon size
+    iconLeft?: boolean; // Global icon left alignment
     gap?: string; // Spacing between items
     textColor?: string; // Global text color
+    subtitleColor?: string; // Global subtitle color
     backgroundSvg?: string; // Desktop background SVG
     backgroundColor?: string; // Desktop background color
 }
@@ -56,9 +60,11 @@ export default function IconListView({
     gridColumns = 4,
     allowFixedItems = true,
     iconSize = "medium",
+    iconLeft = false,
     gap = "1rem",
-    textColor = "#000000",
-    backgroundColor = "#f0f0f0",
+    textColor = "",
+    subtitleColor = "",
+    backgroundColor = "var(--bg-light)",
     backgroundSvg = "",
 }: IconListViewProps) {
     const getIconSizeInPercent = (size: "small" | "medium" | "large" | "xlarge"): string => {
@@ -112,7 +118,6 @@ export default function IconListView({
                 dangerouslySetInnerHTML={{ __html: item.icon }}
                 style={{
                     width: sizeInPercent,
-                    height: sizeInPercent,
                     maxWidth: maxSizeInPercent,
                     maxHeight: maxSizeInPercent,
                 }}
@@ -280,6 +285,7 @@ export default function IconListView({
                         onMouseEnter={() => handleItemHover(item, index)}
                         style={getItemStyle(item)}
                         className={getItemClasses(item, isSelected, isDisabled)}
+                        id={item.id.toString()}
                     >
                         {item.backgroundSvg && <div className="icon-list-overlay-svg" />}
 
@@ -288,7 +294,14 @@ export default function IconListView({
                             <div className="icon-list-overlay-custom" />
                         )}
 
-                        <div className="icon-list-content">
+                        <div
+                            className="icon-list-content"
+                            style={
+                                layout === "grid"
+                                    ? { flexDirection: iconLeft || item.iconLeft ? "row" : "column" }
+                                    : undefined
+                            }
+                        >
                             {renderCustomContent ? (
                                 renderCustomContent(item, index)
                             ) : (
@@ -316,7 +329,12 @@ export default function IconListView({
                                             )}
                                         </div>
                                         {item.subtitle && (
-                                            <p className="icon-list-subtitle">{item.subtitle}</p>
+                                            <p
+                                                className="icon-list-subtitle"
+                                                style={{ color: item.subtitleColor || subtitleColor }}
+                                            >
+                                                {item.subtitle}
+                                            </p>
                                         )}
                                     </div>
                                 </>

@@ -41,6 +41,7 @@ interface FileExplorerProps {
             onAfterDelete?: (item: FileSystemItem) => void;
         };
     };
+    lightMode?: boolean;
 }
 
 interface FileSystemItemProps {
@@ -51,11 +52,13 @@ interface FileSystemItemProps {
     selectedId?: string;
     creationContext?: CreationContext;
     renameContext?: RenameContext;
+    lightMode?: boolean;
 }
 
 interface FileIconProps {
     type: string;
     isExpanded?: boolean;
+    lightMode?: boolean;
 }
 
 interface CreationContext {
@@ -90,27 +93,34 @@ interface IconConfig {
     fileNames: Record<string, string>;
     folderNames: Record<string, string>;
     folderNamesExpanded: Record<string, string>;
-    rootFolderNames: Record<string, string>;
-    rootFolderNamesExpanded: Record<string, string>;
-    languageIds: Record<string, string>;
 }
 
-const config = iconConfig as IconConfig;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const config = iconConfig as any as IconConfig;
 
 // Cache for loaded icons (loaded on demand)
 const iconCache: Record<string, string> = {};
 
 // Function to dynamically load an icon when needed
-const loadIcon = async (iconName: string): Promise<string | null> => {
+const loadIcon = async (iconName: string, lightMode: boolean = false): Promise<string | null> => {
+    // Add _light suffix if in light mode
+    const finalIconName = lightMode ? `${iconName}_light` : iconName;
+    
     // Check if already cached
-    if (iconCache[iconName]) {
-        return iconCache[iconName];
+    if (iconCache[finalIconName]) {
+        return iconCache[finalIconName];
     }
 
     try {
         // Dynamically import the icon
-        const module = await import(`../assets/FileExplorerIcons/${iconName}.svg`);
-        iconCache[iconName] = module.default;
+        let module;
+        try {
+            module = await import(`../assets/FileExplorerIcons/${finalIconName}.svg`);
+        } catch {
+            // If not found, try the regular icon name
+            module = await import(`../assets/FileExplorerIcons/${iconName}.svg`);
+        }
+        iconCache[finalIconName] = module.default;
         return module.default;
     } catch {
         // Icon not found, return null
@@ -128,8 +138,8 @@ export const getFileExtension = (fileName: string): string => {
     return lastDotIndex > 0 ? fileName.slice(lastDotIndex + 1) : "";
 };
 
-// eslint-disable-next-line react-refresh/only-export-components
-export const getFileIcon = (fileName: string): string => {
+const getFileIcon = (fileName: string): string => {
+    
     const lowerFileName = fileName.toLowerCase();
 
     // First check if the exact file name has a specific icon
@@ -143,31 +153,15 @@ export const getFileIcon = (fileName: string): string => {
         return config.fileExtensions[ext];
     }
 
-    // Check in languageIds (for files like .html, .css, etc.)
-    if (ext && config.languageIds[ext]) {
-        return config.languageIds[ext];
-    }
-
     // Fallback to generic file icon
     return "file";
 };
 
 // Get folder icon based on folder name
-// eslint-disable-next-line react-refresh/only-export-components
-export const getFolderIcon = (folderName: string, isExpanded: boolean, isRoot: boolean = false): string => {
+const getFolderIcon = (folderName: string, isExpanded: boolean): string => {
     const lowerFolderName = folderName.toLowerCase();
 
-    // Check root folder names first (if this is a root level folder)
-    if (isRoot) {
-        if (isExpanded && config.rootFolderNamesExpanded[lowerFolderName]) {
-            return config.rootFolderNamesExpanded[lowerFolderName];
-        }
-        if (!isExpanded && config.rootFolderNames[lowerFolderName]) {
-            return config.rootFolderNames[lowerFolderName];
-        }
-    }
-
-    // Check regular folder names
+    // Check folder names
     if (isExpanded && config.folderNamesExpanded[lowerFolderName]) {
         return config.folderNamesExpanded[lowerFolderName];
     }
@@ -217,7 +211,7 @@ const DEFAULT_FILE_ICON = (
     </svg>
 );
 
-export const FileIcon = ({ type, isExpanded }: FileIconProps) => {
+export const FileIcon = ({ type, isExpanded, lightMode = false }: FileIconProps) => {
     const [iconUrl, setIconUrl] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -227,7 +221,7 @@ export const FileIcon = ({ type, isExpanded }: FileIconProps) => {
         setIsLoading(true);
 
         // Try to load the icon dynamically
-        loadIcon(type)
+        loadIcon(type, lightMode)
             .then((url) => {
                 if (isMounted) {
                     setIconUrl(url);
@@ -244,7 +238,7 @@ export const FileIcon = ({ type, isExpanded }: FileIconProps) => {
         return () => {
             isMounted = false;
         };
-    }, [type, isExpanded]);
+    }, [type, isExpanded, lightMode]);
 
     // Show loading state
     if (isLoading) {
@@ -280,6 +274,7 @@ export const FileSystemItem = ({
     selectedId,
     creationContext,
     renameContext,
+    lightMode = false,
 }: FileSystemItemProps) => {
     const isFolder = item.type === "folder";
     const isSelected = selectedId === item.id;
@@ -326,7 +321,7 @@ export const FileSystemItem = ({
                         }`}
                     >
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                            <path d="M6 11L11 6L6 1" stroke="#C5C5C5" strokeWidth="1.5" fill="none" />
+                            <path d="M6 11L11 6L6 1" stroke="var(--color-muted)" strokeWidth="1.5" fill="none" />
                         </svg>
                     </span>
                 ) : (
@@ -336,8 +331,13 @@ export const FileSystemItem = ({
                 {/* File/Folder icon */}
                 <span className="file-system-item__icon">
                     <FileIcon
-                        type={isFolder ? getFolderIcon(item.name, item.isExpanded || false, level === 0) : getFileIcon(item.name)}
+                        type={
+                            isFolder
+                                ? getFolderIcon(item.name, item.isExpanded || false)
+                                : getFileIcon(item.name)
+                        }
                         isExpanded={item.isExpanded}
+                        lightMode={lightMode}
                     />
                 </span>
 
@@ -370,6 +370,7 @@ export const FileSystemItem = ({
                     onNewItemNameChange={handleInputChange}
                     onCreateItem={creationContext.onCreateItem}
                     onCancelCreate={creationContext.onCancelCreate}
+                    lightMode={lightMode}
                 />
             )}
 
@@ -386,6 +387,7 @@ export const FileSystemItem = ({
                             selectedId={selectedId}
                             creationContext={creationContext}
                             renameContext={renameContext}
+                            lightMode={lightMode}
                         />
                     ))}
                 </div>
@@ -405,6 +407,7 @@ interface NewItemInputProps {
     onNewItemNameChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     onCreateItem: () => void;
     onCancelCreate: () => void;
+    lightMode?: boolean;
 }
 
 const NewItemInput = ({
@@ -414,6 +417,7 @@ const NewItemInput = ({
     onNewItemNameChange,
     onCreateItem,
     onCancelCreate,
+    lightMode = false,
 }: NewItemInputProps) => {
     const paddingLeft = `${level * 16 + 8}px`;
 
@@ -433,7 +437,7 @@ const NewItemInput = ({
         <div className="file-explorer__new-item" style={{ paddingLeft }} onClick={handleClick}>
             <div className="file-system-item__spacer" />
             <span className="file-system-item__icon">
-                <FileIcon type={createType === "folder" ? "folder" : "file"} isExpanded={false} />
+                <FileIcon type={createType === "folder" ? "folder" : "file"} isExpanded={false} lightMode={lightMode} />
             </span>
             <input
                 type="text"
@@ -453,16 +457,17 @@ const NewItemInput = ({
 // FileExplorer Component - Main explorer with optimized state management
 // ----------------------------------------------------------------
 
-export const FileExplorer = ({ 
-    initialData = [], 
-    onItemClick, 
+export const FileExplorer = ({
+    initialData = [],
+    onItemClick,
     onItemSelect,
     contextMenuOptions = {
         createFile: { enabled: true },
         createFolder: { enabled: true },
         rename: { enabled: true },
-        delete: { enabled: true }
-    }
+        delete: { enabled: true },
+    },
+    lightMode = false,
 }: FileExplorerProps) => {
     // ----------------------------------------------------------------
     // State Management
@@ -580,7 +585,8 @@ export const FileExplorer = ({
         if (!newItemName.trim()) return;
 
         const targetItem = targetFolderId ? findItemById(fileSystem, targetFolderId) : undefined;
-        const options = createType === "folder" ? contextMenuOptions.createFolder : contextMenuOptions.createFile;
+        const options =
+            createType === "folder" ? contextMenuOptions.createFolder : contextMenuOptions.createFile;
 
         // Call onBeforeCreate callback
         if (options?.onBeforeCreate) {
@@ -628,7 +634,15 @@ export const FileExplorer = ({
         }
 
         cancelCreate();
-    }, [newItemName, createType, targetFolderId, cancelCreate, contextMenuOptions, fileSystem, findItemById]);
+    }, [
+        newItemName,
+        createType,
+        targetFolderId,
+        cancelCreate,
+        contextMenuOptions,
+        fileSystem,
+        findItemById,
+    ]);
 
     /**
      * Start creating a new item
@@ -670,52 +684,58 @@ export const FileExplorer = ({
     /**
      * Delete an item from the file system
      */
-    const deleteItem = useCallback(async (id: string) => {
-        const itemToDelete = findItemById(fileSystem, id);
-        if (!itemToDelete) return;
+    const deleteItem = useCallback(
+        async (id: string) => {
+            const itemToDelete = findItemById(fileSystem, id);
+            if (!itemToDelete) return;
 
-        // Call onBeforeDelete callback
-        if (contextMenuOptions.delete?.onBeforeDelete) {
-            const shouldContinue = await contextMenuOptions.delete.onBeforeDelete(itemToDelete);
-            if (!shouldContinue) {
-                setContextMenu(null);
-                return;
+            // Call onBeforeDelete callback
+            if (contextMenuOptions.delete?.onBeforeDelete) {
+                const shouldContinue = await contextMenuOptions.delete.onBeforeDelete(itemToDelete);
+                if (!shouldContinue) {
+                    setContextMenu(null);
+                    return;
+                }
             }
-        }
 
-        setFileSystem((prevFileSystem) => {
-            const deleteRecursive = (items: FileSystemItem[]): FileSystemItem[] => {
-                return items.filter((item) => {
-                    if (item.id === id) return false;
-                    if (item.children) {
-                        item.children = deleteRecursive(item.children);
-                    }
-                    return true;
-                });
-            };
-            return deleteRecursive(prevFileSystem);
-        });
+            setFileSystem((prevFileSystem) => {
+                const deleteRecursive = (items: FileSystemItem[]): FileSystemItem[] => {
+                    return items.filter((item) => {
+                        if (item.id === id) return false;
+                        if (item.children) {
+                            item.children = deleteRecursive(item.children);
+                        }
+                        return true;
+                    });
+                };
+                return deleteRecursive(prevFileSystem);
+            });
 
-        // Call onAfterDelete callback
-        if (contextMenuOptions.delete?.onAfterDelete) {
-            contextMenuOptions.delete.onAfterDelete(itemToDelete);
-        }
+            // Call onAfterDelete callback
+            if (contextMenuOptions.delete?.onAfterDelete) {
+                contextMenuOptions.delete.onAfterDelete(itemToDelete);
+            }
 
-        setContextMenu(null);
-    }, [fileSystem, findItemById, contextMenuOptions]);
+            setContextMenu(null);
+        },
+        [fileSystem, findItemById, contextMenuOptions]
+    );
 
     /**
      * Start renaming an item
      */
-    const startRenaming = useCallback((itemId: string) => {
-        const item = findItemById(fileSystem, itemId);
-        if (!item) return;
+    const startRenaming = useCallback(
+        (itemId: string) => {
+            const item = findItemById(fileSystem, itemId);
+            if (!item) return;
 
-        setRenamingItemId(itemId);
-        setNewName(item.name);
-        setIsRenaming(true);
-        setContextMenu(null);
-    }, [fileSystem, findItemById]);
+            setRenamingItemId(itemId);
+            setNewName(item.name);
+            setIsRenaming(true);
+            setContextMenu(null);
+        },
+        [fileSystem, findItemById]
+    );
 
     /**
      * Cancel renaming
@@ -775,7 +795,11 @@ export const FileExplorer = ({
 
         // Call onAfterRename callback
         if (contextMenuOptions.rename?.onAfterRename) {
-            contextMenuOptions.rename.onAfterRename({ ...item, name: newName.trim() }, oldName, newName.trim());
+            contextMenuOptions.rename.onAfterRename(
+                { ...item, name: newName.trim() },
+                oldName,
+                newName.trim()
+            );
         }
 
         cancelRename();
@@ -796,6 +820,37 @@ export const FileExplorer = ({
             setContextMenu((prev) => ({ x: e.clientX, y: e.clientY, itemId: prev?.itemId }));
         }
     }, []);
+
+    /**
+     * Close context menu when clicking outside or scrolling
+     */
+    useEffect(() => {
+        if (!contextMenu) return;
+
+        const handleClickOutside = (e: MouseEvent) => {
+            const target = e.target as HTMLElement;
+            // Check if click was outside the context menu
+            if (!target.closest('.file-explorer__context-menu')) {
+                setContextMenu(null);
+            }
+        };
+
+        const handleScroll = () => {
+            setContextMenu(null);
+        };
+
+        // Add listener after a short delay to avoid closing immediately
+        const timeoutId = setTimeout(() => {
+            document.addEventListener('click', handleClickOutside);
+            document.addEventListener('scroll', handleScroll, true); // Use capture phase to catch all scroll events
+        }, 0);
+
+        return () => {
+            clearTimeout(timeoutId);
+            document.removeEventListener('click', handleClickOutside);
+            document.removeEventListener('scroll', handleScroll, true);
+        };
+    }, [contextMenu]);
 
     // ----------------------------------------------------------------
     // Memoized Values
@@ -842,10 +897,12 @@ export const FileExplorer = ({
             <ExplorerHeader
                 onCreateFile={() => startCreating("file")}
                 onCreateFolder={() => startCreating("folder")}
+                showCreateFile={contextMenuOptions.createFile?.enabled !== false}
+                showCreateFolder={contextMenuOptions.createFolder?.enabled !== false}
             />
 
             {/* File system tree view */}
-            <div className="file-explorer__content" onClick={() => setContextMenu(null)}>
+            <div className="file-explorer__content">
                 {/* New item input field at root level */}
                 {isCreating && targetFolderId === null && (
                     <NewItemInput
@@ -855,6 +912,7 @@ export const FileExplorer = ({
                         onNewItemNameChange={(e) => setNewItemName(e.target.value)}
                         onCreateItem={createNewItem}
                         onCancelCreate={cancelCreate}
+                        lightMode={lightMode}
                     />
                 )}
 
@@ -869,6 +927,7 @@ export const FileExplorer = ({
                         selectedId={selectedId}
                         creationContext={creationContext}
                         renameContext={renameContext}
+                        lightMode={lightMode}
                     />
                 ))}
 
@@ -908,41 +967,56 @@ export const FileExplorer = ({
 interface ExplorerHeaderProps {
     onCreateFile: () => void;
     onCreateFolder: () => void;
+    showCreateFile?: boolean;
+    showCreateFolder?: boolean;
 }
 
-const ExplorerHeader = ({ onCreateFile, onCreateFolder }: ExplorerHeaderProps) => (
+const ExplorerHeader = ({
+    onCreateFile,
+    onCreateFolder,
+    showCreateFile = true,
+    showCreateFolder = true,
+}: ExplorerHeaderProps) => (
     <div className="file-explorer__header">
         <span className="file-explorer__title">Explorer</span>
         <div className="file-explorer__actions">
             {/* New File button */}
-            <button onClick={onCreateFile} className="file-explorer__action-btn" title="New File">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <path
-                        d="M9.5 1.5H3.5C2.95 1.5 2.5 1.95 2.5 2.5V13.5C2.5 14.05 2.95 14.5 3.5 14.5H12.5C13.05 14.5 13.5 14.05 13.5 13.5V5.5L9.5 1.5Z"
-                        stroke="currentColor"
-                        strokeWidth="1"
-                        fill="none"
-                    />
-                    <path d="M9.5 1.5V5.5H13.5" stroke="currentColor" strokeWidth="1" fill="none" />
-                </svg>
-            </button>
+            {showCreateFile && (
+                <button onClick={onCreateFile} className="file-explorer__action-btn" title="New File">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path
+                            d="M9.5 1.5H3.5C2.95 1.5 2.5 1.95 2.5 2.5V13.5C2.5 14.05 2.95 14.5 3.5 14.5H12.5C13.05 14.5 13.5 14.05 13.5 13.5V5.5L9.5 1.5Z"
+                            stroke="currentColor"
+                            strokeWidth="1"
+                            fill="none"
+                        />
+                        <path d="M9.5 1.5V5.5H13.5" stroke="currentColor" strokeWidth="1" fill="none" />
+                    </svg>
+                </button>
+            )}
             {/* New Folder button */}
-            <button onClick={onCreateFolder} className="file-explorer__action-btn" title="New Folder">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <path
-                        d="M14 12.5V5H6.5L5 3H2V12.5H14Z"
-                        stroke="currentColor"
-                        strokeWidth="1"
-                        fill="none"
-                    />
-                    <path
-                        d="M2 3V2C2 1.72 2.22 1.5 2.5 1.5H5.5L6.5 3H13.5C13.78 3 14 3.22 14 3.5V5H6.5L5 3H2Z"
-                        stroke="currentColor"
-                        strokeWidth="1"
-                        fill="none"
-                    />
-                </svg>
-            </button>
+            {showCreateFolder && (
+                <button
+                    onClick={onCreateFolder}
+                    className="file-explorer__action-btn"
+                    title="New Folder"
+                >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path
+                            d="M14 12.5V5H6.5L5 3H2V12.5H14Z"
+                            stroke="currentColor"
+                            strokeWidth="1"
+                            fill="none"
+                        />
+                        <path
+                            d="M2 3V2C2 1.72 2.22 1.5 2.5 1.5H5.5L6.5 3H13.5C13.78 3 14 3.22 14 3.5V5H6.5L5 3H2Z"
+                            stroke="currentColor"
+                            strokeWidth="1"
+                            fill="none"
+                        />
+                    </svg>
+                </button>
+            )}
         </div>
     </div>
 );
@@ -955,14 +1029,23 @@ interface ContextMenuProps {
     x: number;
     y: number;
     itemId?: string;
-    options: FileExplorerProps['contextMenuOptions'];
+    options: FileExplorerProps["contextMenuOptions"];
     onCreateFile: () => void;
     onCreateFolder: () => void;
     onRename: () => void;
     onDelete: () => void;
 }
 
-const ContextMenu = ({ x, y, itemId, options, onCreateFile, onCreateFolder, onRename, onDelete }: ContextMenuProps) => {
+const ContextMenu = ({
+    x,
+    y,
+    itemId,
+    options,
+    onCreateFile,
+    onCreateFolder,
+    onRename,
+    onDelete,
+}: ContextMenuProps) => {
     const showCreateFile = options?.createFile?.enabled !== false;
     const showCreateFolder = options?.createFolder?.enabled !== false;
     const showRename = options?.rename?.enabled !== false && itemId;
@@ -975,7 +1058,7 @@ const ContextMenu = ({ x, y, itemId, options, onCreateFile, onCreateFolder, onRe
     }
 
     return (
-        <div className="file-explorer__context-menu" style={{ left: x, top: y }}>
+        <div className="file-explorer__context-menu" style={{ left: x + 1, top: y + 1 }}>
             {showCreateFile && (
                 <button onClick={onCreateFile} className="file-explorer__context-menu-item">
                     New File
@@ -986,7 +1069,7 @@ const ContextMenu = ({ x, y, itemId, options, onCreateFile, onCreateFolder, onRe
                     New Folder
                 </button>
             )}
-            {itemId && (showRename || showDelete) && (
+            {itemId && (showRename || showDelete) && (showCreateFile || showCreateFolder) && (
                 <div className="file-explorer__context-menu-separator"></div>
             )}
             {showRename && (

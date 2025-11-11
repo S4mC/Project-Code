@@ -2,10 +2,11 @@ import { useState } from "react";
 import "./App.css";
 import IconListView from "./components/IconListView.tsx";
 import type { IconListItem } from "./components/IconListView.tsx";
-import PruebaComponent from "./components/pruebaComponent.tsx";
 import LanguageSelector from "./components/languageSelector.tsx";
 import { createTranslationHook } from "../utils/languages.ts";
 import { FileExplorer, type FileSystemItem } from "./components/FileExplorer.tsx";
+import { ThemeSelector } from "./components/themeSelector.tsx";
+import { useTheme } from "./hooks/useTheme.ts";
 
 // Create hook at module level - auto-registers namespace before render
 const useAppTranslation = createTranslationHook("index");
@@ -13,6 +14,9 @@ const useAppTranslation = createTranslationHook("index");
 function App() {
     // Clean, single call - no repetition!
     const t = useAppTranslation();
+    
+    // Detect theme changes automatically
+    const { isLightMode } = useTheme();
 
     const [selectedId, setSelectedId] = useState<string | number>("home");
 
@@ -28,14 +32,13 @@ function App() {
         { id: "a2", text: "Usuarios 1651 6 168 16 81 6  6 168 1 68168 1" },
         {
             id: "a50",
-            icon: "User",
             text: "Usuarios",
             subtitle: "subt        sddsds  dds ds d sds            eewew  weew  ewew  ewitle",
             badge: 5,
         },
         {
             id: "a60cc",
-            icon: "User",
+            icon: "👤 User",
             text: "Usuarios strart 1",
             badge: 5,
             disabled: true,
@@ -45,24 +48,27 @@ function App() {
         },
         {
             id: "a60ccc",
-            icon: "User",
             text: "Usuarios row 1",
             badge: 5,
             gridRowStart: 1,
-            backgroundColor: "#575757ff",
+            backgroundColor: "#141414ff",
             textColor: "#be185dff",
+            subtitleColor: "#c4ff5dff",
+            subtitle: "subtitulo personalizado"
         },
         { id: "a3", icon: "Settings", text: "Ajustes" },
         { id: "a33", icon: "Settings", text: "Ajustes" },
         { id: "a333", icon: "Settings", text: "Ajustes" },
         { id: "a3333", icon: "Settings", text: "Ajustes" },
-        { id: "a5", icon: "Bell", text: "Notificaciones", badge: 3 },
+        { id: "a5", text: "Notificaciones", badge: 3 , icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M6 15h1.5V9H5v1.5h1zm3.5 0H12q.425 0 .713-.288T13 14v-4q0-.425-.288-.712T12 9H9.5q-.425 0-.712.288T8.5 10v4q0 .425.288.713T9.5 15m.5-1.5v-3h1.5v3zm4 1.5h1.5v-2.25L17.25 15H19l-2.25-3L19 9h-1.75l-1.75 2.25V9H14zm-9 6q-.825 0-1.412-.587T3 19V5q0-.825.588-1.412T5 3h14q.825 0 1.413.588T21 5v14q0 .825-.587 1.413T19 21z"/></svg>',},
         {
             id: "a4",
             text: "Reportes",
+            subtitle: "subtitulo personalizado",
             gridSpan: 2,
             gridRowSpan: 2,
             icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M6 15h1.5V9H5v1.5h1zm3.5 0H12q.425 0 .713-.288T13 14v-4q0-.425-.288-.712T12 9H9.5q-.425 0-.712.288T8.5 10v4q0 .425.288.713T9.5 15m.5-1.5v-3h1.5v3zm4 1.5h1.5v-2.25L17.25 15H19l-2.25-3L19 9h-1.75l-1.75 2.25V9H14zm-9 6q-.825 0-1.412-.587T3 19V5q0-.825.588-1.412T5 3h14q.825 0 1.413.588T21 5v14q0 .825-.587 1.413T19 21z"/></svg>',
+            iconLeft: true,
         },
         {
             id: "a6",
@@ -241,6 +247,11 @@ function App() {
             name: "vite.config.ts",
             type: "file",
         },
+        {
+            id: "28",
+            name: "prueba.toml",
+            type: "file",
+        }
     ];
 
     const handleItemClick = (item: IconListItem) => {
@@ -250,34 +261,15 @@ function App() {
 
     const handleFileItemClick = (item: FileSystemItem) => {
         console.log("Clic en archivo/carpeta:", item);
-        // Aquí puedes hacer lo que necesites con el item
-        // Por ejemplo, abrir el archivo, expandir carpeta, etc.
     };
 
     return (
         <>
-            <PruebaComponent />
             <LanguageSelector />
             <span>{t("language") /* Language selector label */}</span>
-            <FileExplorer 
-                initialData={sampleFileSystem} 
-                onItemClick={handleFileItemClick}
-                contextMenuOptions={{
-                    rename: {
-                        enabled: false,
-                    },
-                    createFile: {
-                        enabled: false,
-                    },
-                    createFolder: {
-                        enabled: false,
-                    },
-                    delete: {
-                        enabled: true,
-                    }
-                }}
-            />
 
+            <ThemeSelector />
+            
             <IconListView
                 items={advancedGridItems}
                 onItemClick={handleItemClick}
@@ -285,9 +277,29 @@ function App() {
                 layout="grid"
                 iconSize="small"
                 allowFixedItems={true}
-                textColor="var(--bg)"
                 backgroundSvg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#3b82f6;stop-opacity:0.1"/><stop offset="100%" style="stop-color:#2563eb;stop-opacity:0.1"/></linearGradient></defs><rect fill="url(#grad1)" width="100" height="100"/><path fill="#3b82f6" opacity="0.15" d="M10 50 L50 10 L90 50 L90 90 H10 Z"/></svg>'
             />
+
+            <FileExplorer 
+                initialData={sampleFileSystem} 
+                onItemClick={handleFileItemClick}
+                contextMenuOptions={{
+                    rename: {
+                        enabled: true,
+                    },
+                    createFile: {
+                        enabled: true,
+                    },
+                    createFolder: {
+                        enabled: true,
+                    },
+                    delete: {
+                        enabled: true,
+                    }
+                }}
+                lightMode={isLightMode}
+            />
+
             <button
                 onClick={() =>
                     setAdvancedGridItems([

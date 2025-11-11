@@ -220,7 +220,6 @@ export async function changeLanguage(lng: string): Promise<void> {
         localStorage.setItem(LANG_KEY, lng);
         document.documentElement.setAttribute("lang", lng);
 
-        console.log(`Language changed to ${lng}`);
     } catch (error) {
         console.error(`Error changing language to ${lng}:`, error);
         // Fallback to reload if dynamic change fails
