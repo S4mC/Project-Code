@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import "./FileExplorer.css";
 
 // ----------------------------------------------------------------
@@ -16,9 +16,10 @@ export interface FileSystemItem {
 }
 
 interface FileExplorerProps {
-    initialData?: FileSystemItem[];
+    data?: FileSystemItem[];
     onItemClick?: (item: FileSystemItem) => void;
     onItemSelect?: (item: FileSystemItem) => void;
+    onDataChange?: (data: FileSystemItem[]) => void;
     contextMenuOptions?: {
         createFile?: {
             enabled: boolean;
@@ -56,7 +57,7 @@ interface FileSystemItemProps {
 }
 
 interface FileIconProps {
-    type: string;
+    type: string | Promise<string>; // Allow both sync and async type resolution
     isExpanded?: boolean;
     lightMode?: boolean;
 }
@@ -84,19 +85,25 @@ interface RenameContext {
 // Constants & Dynamic Icon Loading
 // ----------------------------------------------------------------
 
-// Import icon configuration
-import iconConfig from "../assets/FileExplorerIcons.json";
-
-// Type for icon configuration
-interface IconConfig {
-    fileExtensions: Record<string, string>;
-    fileNames: Record<string, string>;
+// Lazy load icon configuration only when needed
+let configCache: {
     folderNames: Record<string, string>;
-    folderNamesExpanded: Record<string, string>;
-}
+    fileNames: Record<string, string>;
+    fileExtensions: Record<string, string>;
+} | null = null;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const config = iconConfig as any as IconConfig;
+// Load configuration on demand
+const getConfig = async () => {
+    if (!configCache) {
+        const module = await import("../assets/FileExplorerIcons");
+        configCache = module.FileExplorerIcons as {
+            folderNames: Record<string, string>;
+            fileNames: Record<string, string>;
+            fileExtensions: Record<string, string>;
+        };
+    }
+    return configCache;
+};
 
 // Cache for loaded icons (loaded on demand)
 const iconCache: Record<string, string> = {};
@@ -105,7 +112,7 @@ const iconCache: Record<string, string> = {};
 const loadIcon = async (iconName: string, lightMode: boolean = false): Promise<string | null> => {
     // Add _light suffix if in light mode
     const finalIconName = lightMode ? `${iconName}_light` : iconName;
-    
+
     // Check if already cached
     if (iconCache[finalIconName]) {
         return iconCache[finalIconName];
@@ -138,8 +145,8 @@ export const getFileExtension = (fileName: string): string => {
     return lastDotIndex > 0 ? fileName.slice(lastDotIndex + 1) : "";
 };
 
-const getFileIcon = (fileName: string): string => {
-    
+const getFileIcon = async (fileName: string): Promise<string> => {
+    const config = await getConfig();
     const lowerFileName = fileName.toLowerCase();
 
     // First check if the exact file name has a specific icon
@@ -158,12 +165,13 @@ const getFileIcon = (fileName: string): string => {
 };
 
 // Get folder icon based on folder name
-const getFolderIcon = (folderName: string, isExpanded: boolean): string => {
+const getFolderIcon = async (folderName: string, isExpanded: boolean): Promise<string> => {
+    const config = await getConfig();
     const lowerFolderName = folderName.toLowerCase();
 
     // Check folder names
-    if (isExpanded && config.folderNamesExpanded[lowerFolderName]) {
-        return config.folderNamesExpanded[lowerFolderName];
+    if (isExpanded && config.folderNames[lowerFolderName]) {
+        return config.folderNames[lowerFolderName] + "-open";
     }
     if (!isExpanded && config.folderNames[lowerFolderName]) {
         return config.folderNames[lowerFolderName];
@@ -214,6 +222,27 @@ const DEFAULT_FILE_ICON = (
 export const FileIcon = ({ type, isExpanded, lightMode = false }: FileIconProps) => {
     const [iconUrl, setIconUrl] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [resolvedType, setResolvedType] = useState<string>("file");
+
+    // Resolve type if it's a Promise (for async icon name resolution)
+    useEffect(() => {
+        let isMounted = true;
+
+        const resolveType = async () => {
+            // Check if type is a Promise (from async getFileIcon or getFolderIcon)
+            const actualType = typeof type === "string" ? type : await type;
+
+            if (isMounted) {
+                setResolvedType(actualType);
+            }
+        };
+
+        resolveType();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [type]);
 
     // Load icon dynamically when component mounts or type changes
     useEffect(() => {
@@ -221,7 +250,7 @@ export const FileIcon = ({ type, isExpanded, lightMode = false }: FileIconProps)
         setIsLoading(true);
 
         // Try to load the icon dynamically
-        loadIcon(type, lightMode)
+        loadIcon(resolvedType, lightMode)
             .then((url) => {
                 if (isMounted) {
                     setIconUrl(url);
@@ -238,12 +267,12 @@ export const FileIcon = ({ type, isExpanded, lightMode = false }: FileIconProps)
         return () => {
             isMounted = false;
         };
-    }, [type, isExpanded, lightMode]);
+    }, [resolvedType, isExpanded, lightMode]);
 
     // Show loading state
     if (isLoading) {
         // Use default icons while loading
-        if (type === "folder") {
+        if (resolvedType === "folder" || resolvedType.startsWith("folder-")) {
             return isExpanded ? FOLDER_ICON_EXPANDED : FOLDER_ICON_COLLAPSED;
         }
         return DEFAULT_FILE_ICON;
@@ -251,11 +280,13 @@ export const FileIcon = ({ type, isExpanded, lightMode = false }: FileIconProps)
 
     // Try to use dynamically loaded icon
     if (iconUrl) {
-        return <img src={iconUrl} width="16" height="16" alt={type} style={{ display: "block" }} />;
+        return (
+            <img src={iconUrl} width="16" height="16" alt={resolvedType} style={{ display: "block" }} />
+        );
     }
 
     // Fallback to default icons
-    if (type === "folder") {
+    if (resolvedType === "folder" || resolvedType.startsWith("folder-")) {
         return isExpanded ? FOLDER_ICON_EXPANDED : FOLDER_ICON_COLLAPSED;
     }
 
@@ -321,7 +352,12 @@ export const FileSystemItem = ({
                         }`}
                     >
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                            <path d="M6 11L11 6L6 1" stroke="var(--color-muted)" strokeWidth="1.5" fill="none" />
+                            <path
+                                d="M6 11L11 6L6 1"
+                                stroke="var(--color-muted)"
+                                strokeWidth="1.5"
+                                fill="none"
+                            />
                         </svg>
                     </span>
                 ) : (
@@ -361,19 +397,6 @@ export const FileSystemItem = ({
                 )}
             </div>
 
-            {/* Show new item input if creating inside this folder */}
-            {showNewItemInput && isFolder && creationContext && (
-                <NewItemInput
-                    level={level + 1}
-                    createType={creationContext.createType}
-                    newItemName={creationContext.newItemName}
-                    onNewItemNameChange={handleInputChange}
-                    onCreateItem={creationContext.onCreateItem}
-                    onCancelCreate={creationContext.onCancelCreate}
-                    lightMode={lightMode}
-                />
-            )}
-
             {/* Recursively render children if folder is expanded */}
             {isFolder && item.isExpanded && item.children && (
                 <div>
@@ -391,6 +414,19 @@ export const FileSystemItem = ({
                         />
                     ))}
                 </div>
+            )}
+
+            {/* Show new item input at the end if creating inside this folder */}
+            {showNewItemInput && isFolder && creationContext && (
+                <NewItemInput
+                    level={level + 1}
+                    createType={creationContext.createType}
+                    newItemName={creationContext.newItemName}
+                    onNewItemNameChange={handleInputChange}
+                    onCreateItem={creationContext.onCreateItem}
+                    onCancelCreate={creationContext.onCancelCreate}
+                    lightMode={lightMode}
+                />
             )}
         </div>
     );
@@ -437,7 +473,11 @@ const NewItemInput = ({
         <div className="file-explorer__new-item" style={{ paddingLeft }} onClick={handleClick}>
             <div className="file-system-item__spacer" />
             <span className="file-system-item__icon">
-                <FileIcon type={createType === "folder" ? "folder" : "file"} isExpanded={false} lightMode={lightMode} />
+                <FileIcon
+                    type={createType === "folder" ? "folder" : "file"}
+                    isExpanded={false}
+                    lightMode={lightMode}
+                />
             </span>
             <input
                 type="text"
@@ -458,9 +498,10 @@ const NewItemInput = ({
 // ----------------------------------------------------------------
 
 export const FileExplorer = ({
-    initialData = [],
+    data = [],
     onItemClick,
     onItemSelect,
+    onDataChange,
     contextMenuOptions = {
         createFile: { enabled: true },
         createFolder: { enabled: true },
@@ -472,7 +513,7 @@ export const FileExplorer = ({
     // ----------------------------------------------------------------
     // State Management
     // ----------------------------------------------------------------
-    const [fileSystem, setFileSystem] = useState<FileSystemItem[]>(initialData);
+    const [fileSystem, setFileSystem] = useState<FileSystemItem[]>(data);
     const [selectedId, setSelectedId] = useState<string>();
     const [isCreating, setIsCreating] = useState(false);
     const [createType, setCreateType] = useState<"file" | "folder">("file");
@@ -483,6 +524,36 @@ export const FileExplorer = ({
     const [newName, setNewName] = useState("");
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; itemId?: string } | null>(
         null
+    );
+
+    // Track if the change came from external prop to avoid infinite loops
+    const isExternalUpdate = useRef(false);
+
+    // Sync internal state with external data prop
+    useEffect(() => {
+        isExternalUpdate.current = true;
+        setFileSystem(data);
+    }, [data]);
+
+    // Notify parent component when fileSystem changes (after render)
+    useEffect(() => {
+        // Only notify parent if change was internal (not from external prop)
+        if (!isExternalUpdate.current) {
+            onDataChange?.(fileSystem);
+        } else {
+            isExternalUpdate.current = false;
+        }
+    }, [fileSystem, onDataChange]);
+
+    // Helper function to update fileSystem
+    const updateFileSystem = useCallback(
+        (updater: FileSystemItem[] | ((prev: FileSystemItem[]) => FileSystemItem[])) => {
+            setFileSystem((prev) => {
+                const newData = typeof updater === "function" ? updater(prev) : updater;
+                return newData;
+            });
+        },
+        []
     );
 
     // ----------------------------------------------------------------
@@ -533,22 +604,25 @@ export const FileExplorer = ({
     /**
      * Toggle expand/collapse state of a folder
      */
-    const toggleItem = useCallback((id: string) => {
-        setFileSystem((prevFileSystem) => {
-            const toggleRecursive = (items: FileSystemItem[]): FileSystemItem[] => {
-                return items.map((item) => {
-                    if (item.id === id) {
-                        return { ...item, isExpanded: !item.isExpanded };
-                    }
-                    if (item.children) {
-                        return { ...item, children: toggleRecursive(item.children) };
-                    }
-                    return item;
-                });
-            };
-            return toggleRecursive(prevFileSystem);
-        });
-    }, []);
+    const toggleItem = useCallback(
+        (id: string) => {
+            updateFileSystem((prevFileSystem) => {
+                const toggleRecursive = (items: FileSystemItem[]): FileSystemItem[] => {
+                    return items.map((item) => {
+                        if (item.id === id) {
+                            return { ...item, isExpanded: !item.isExpanded };
+                        }
+                        if (item.children) {
+                            return { ...item, children: toggleRecursive(item.children) };
+                        }
+                        return item;
+                    });
+                };
+                return toggleRecursive(prevFileSystem);
+            });
+        },
+        [updateFileSystem]
+    );
 
     /**
      * Handle item selection
@@ -605,7 +679,7 @@ export const FileExplorer = ({
             isExpanded: false,
         };
 
-        setFileSystem((prevFileSystem) => {
+        updateFileSystem((prevFileSystem) => {
             if (targetFolderId) {
                 const addToFolder = (items: FileSystemItem[]): FileSystemItem[] => {
                     return items.map((item) => {
@@ -642,16 +716,25 @@ export const FileExplorer = ({
         contextMenuOptions,
         fileSystem,
         findItemById,
+        updateFileSystem,
     ]);
 
     /**
      * Start creating a new item
      */
     const startCreating = useCallback(
-        (type: "file" | "folder", contextItemId?: string) => {
+        (type: "file" | "folder", contextItemId?: string, isFromContextMenu: boolean = false) => {
             setCreateType(type);
             setNewItemName("");
 
+            // If from context menu without specific item, create in root
+            if (isFromContextMenu && contextItemId === undefined) {
+                setTargetFolderId(null);
+                setIsCreating(true);
+                return;
+            }
+
+            // Otherwise, use context item or selected item
             const targetItemId = contextItemId || selectedId;
 
             if (targetItemId) {
@@ -698,7 +781,7 @@ export const FileExplorer = ({
                 }
             }
 
-            setFileSystem((prevFileSystem) => {
+            updateFileSystem((prevFileSystem) => {
                 const deleteRecursive = (items: FileSystemItem[]): FileSystemItem[] => {
                     return items.filter((item) => {
                         if (item.id === id) return false;
@@ -718,7 +801,7 @@ export const FileExplorer = ({
 
             setContextMenu(null);
         },
-        [fileSystem, findItemById, contextMenuOptions]
+        [fileSystem, findItemById, contextMenuOptions, updateFileSystem]
     );
 
     /**
@@ -778,7 +861,7 @@ export const FileExplorer = ({
             }
         }
 
-        setFileSystem((prevFileSystem) => {
+        updateFileSystem((prevFileSystem) => {
             const renameRecursive = (items: FileSystemItem[]): FileSystemItem[] => {
                 return items.map((item) => {
                     if (item.id === renamingItemId) {
@@ -803,7 +886,15 @@ export const FileExplorer = ({
         }
 
         cancelRename();
-    }, [renamingItemId, newName, cancelRename, fileSystem, findItemById, contextMenuOptions]);
+    }, [
+        renamingItemId,
+        newName,
+        cancelRename,
+        fileSystem,
+        findItemById,
+        contextMenuOptions,
+        updateFileSystem,
+    ]);
 
     /**
      * Handle right-click context menu
@@ -830,7 +921,7 @@ export const FileExplorer = ({
         const handleClickOutside = (e: MouseEvent) => {
             const target = e.target as HTMLElement;
             // Check if click was outside the context menu
-            if (!target.closest('.file-explorer__context-menu')) {
+            if (!target.closest(".file-explorer__context-menu")) {
                 setContextMenu(null);
             }
         };
@@ -841,14 +932,14 @@ export const FileExplorer = ({
 
         // Add listener after a short delay to avoid closing immediately
         const timeoutId = setTimeout(() => {
-            document.addEventListener('click', handleClickOutside);
-            document.addEventListener('scroll', handleScroll, true); // Use capture phase to catch all scroll events
+            document.addEventListener("click", handleClickOutside);
+            document.addEventListener("scroll", handleScroll, true); // Use capture phase to catch all scroll events
         }, 0);
 
         return () => {
             clearTimeout(timeoutId);
-            document.removeEventListener('click', handleClickOutside);
-            document.removeEventListener('scroll', handleScroll, true);
+            document.removeEventListener("click", handleClickOutside);
+            document.removeEventListener("scroll", handleScroll, true);
         };
     }, [contextMenu]);
 
@@ -903,19 +994,6 @@ export const FileExplorer = ({
 
             {/* File system tree view */}
             <div className="file-explorer__content">
-                {/* New item input field at root level */}
-                {isCreating && targetFolderId === null && (
-                    <NewItemInput
-                        level={0}
-                        createType={createType}
-                        newItemName={newItemName}
-                        onNewItemNameChange={(e) => setNewItemName(e.target.value)}
-                        onCreateItem={createNewItem}
-                        onCancelCreate={cancelCreate}
-                        lightMode={lightMode}
-                    />
-                )}
-
                 {/* Render file system items */}
                 {fileSystem.map((item) => (
                     <FileSystemItem
@@ -931,6 +1009,19 @@ export const FileExplorer = ({
                     />
                 ))}
 
+                {/* New item input field at root level (at the end) */}
+                {isCreating && targetFolderId === null && (
+                    <NewItemInput
+                        level={0}
+                        createType={createType}
+                        newItemName={newItemName}
+                        onNewItemNameChange={(e) => setNewItemName(e.target.value)}
+                        onCreateItem={createNewItem}
+                        onCancelCreate={cancelCreate}
+                        lightMode={lightMode}
+                    />
+                )}
+
                 {/* Empty state message */}
                 {fileSystem.length === 0 && !isCreating && (
                     <div className="file-explorer__empty">No files or folders</div>
@@ -945,11 +1036,11 @@ export const FileExplorer = ({
                     itemId={contextMenu.itemId}
                     options={contextMenuOptions}
                     onCreateFile={() => {
-                        startCreating("file", contextMenu.itemId);
+                        startCreating("file", contextMenu.itemId, true);
                         setContextMenu(null);
                     }}
                     onCreateFolder={() => {
-                        startCreating("folder", contextMenu.itemId);
+                        startCreating("folder", contextMenu.itemId, true);
                         setContextMenu(null);
                     }}
                     onRename={() => contextMenu.itemId && startRenaming(contextMenu.itemId)}

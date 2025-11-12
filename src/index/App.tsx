@@ -14,7 +14,7 @@ const useAppTranslation = createTranslationHook("index");
 function App() {
     // Clean, single call - no repetition!
     const t = useAppTranslation();
-    
+
     // Detect theme changes automatically
     const { isLightMode } = useTheme();
 
@@ -54,13 +54,18 @@ function App() {
             backgroundColor: "#141414ff",
             textColor: "#be185dff",
             subtitleColor: "#c4ff5dff",
-            subtitle: "subtitulo personalizado"
+            subtitle: "subtitulo personalizado",
         },
         { id: "a3", icon: "Settings", text: "Ajustes" },
         { id: "a33", icon: "Settings", text: "Ajustes" },
         { id: "a333", icon: "Settings", text: "Ajustes" },
         { id: "a3333", icon: "Settings", text: "Ajustes" },
-        { id: "a5", text: "Notificaciones", badge: 3 , icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M6 15h1.5V9H5v1.5h1zm3.5 0H12q.425 0 .713-.288T13 14v-4q0-.425-.288-.712T12 9H9.5q-.425 0-.712.288T8.5 10v4q0 .425.288.713T9.5 15m.5-1.5v-3h1.5v3zm4 1.5h1.5v-2.25L17.25 15H19l-2.25-3L19 9h-1.75l-1.75 2.25V9H14zm-9 6q-.825 0-1.412-.587T3 19V5q0-.825.588-1.412T5 3h14q.825 0 1.413.588T21 5v14q0 .825-.587 1.413T19 21z"/></svg>',},
+        {
+            id: "a5",
+            text: "Notificaciones",
+            badge: 3,
+            icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M6 15h1.5V9H5v1.5h1zm3.5 0H12q.425 0 .713-.288T13 14v-4q0-.425-.288-.712T12 9H9.5q-.425 0-.712.288T8.5 10v4q0 .425.288.713T9.5 15m.5-1.5v-3h1.5v3zm4 1.5h1.5v-2.25L17.25 15H19l-2.25-3L19 9h-1.75l-1.75 2.25V9H14zm-9 6q-.825 0-1.412-.587T3 19V5q0-.825.588-1.412T5 3h14q.825 0 1.413.588T21 5v14q0 .825-.587 1.413T19 21z"/></svg>',
+        },
         {
             id: "a4",
             text: "Reportes",
@@ -79,7 +84,7 @@ function App() {
         },
     ]);
 
-    const sampleFileSystem: FileSystemItem[] = [
+    const [sampleFileSystem, setSampleFileSystem] = useState<FileSystemItem[]>([
         {
             id: "1",
             name: ".github",
@@ -251,8 +256,8 @@ function App() {
             id: "28",
             name: "prueba.toml",
             type: "file",
-        }
-    ];
+        },
+    ]);
 
     const handleItemClick = (item: IconListItem) => {
         setSelectedId(item.id);
@@ -269,7 +274,7 @@ function App() {
             <span>{t("language") /* Language selector label */}</span>
 
             <ThemeSelector />
-            
+
             <IconListView
                 items={advancedGridItems}
                 onItemClick={handleItemClick}
@@ -280,9 +285,21 @@ function App() {
                 backgroundSvg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#3b82f6;stop-opacity:0.1"/><stop offset="100%" style="stop-color:#2563eb;stop-opacity:0.1"/></linearGradient></defs><rect fill="url(#grad1)" width="100" height="100"/><path fill="#3b82f6" opacity="0.15" d="M10 50 L50 10 L90 50 L90 90 H10 Z"/></svg>'
             />
 
-            <FileExplorer 
-                initialData={sampleFileSystem} 
+            <button
+                onClick={() =>
+                    setAdvancedGridItems([
+                        ...advancedGridItems,
+                        { id: "newww", icon: "New", text: "Nuevo" },
+                    ])
+                }
+            >
+                Add Item
+            </button>
+
+            <FileExplorer
+                data={sampleFileSystem}
                 onItemClick={handleFileItemClick}
+                onDataChange={setSampleFileSystem}
                 contextMenuOptions={{
                     rename: {
                         enabled: true,
@@ -295,20 +312,28 @@ function App() {
                     },
                     delete: {
                         enabled: true,
-                    }
+                    },
                 }}
                 lightMode={isLightMode}
             />
 
             <button
                 onClick={() =>
-                    setAdvancedGridItems([
-                        ...advancedGridItems,
-                        { id: "newww", icon: "New", text: "Nuevo" },
+                    setSampleFileSystem([
+                        ...sampleFileSystem,
+                        { id: "12343212", name: "text.txt", type: "file", isExpanded: false, children: [] },
                     ])
                 }
             >
                 Add Item
+            </button>
+
+            <button
+                onClick={() =>
+                    console.log("Current File System:", sampleFileSystem)
+                }
+            >
+                Console.log
             </button>
         </>
     );
