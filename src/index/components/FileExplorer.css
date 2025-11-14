@@ -84,6 +84,20 @@
    File System Items
    ---------------------------------------------------------------- */
 
+.file-system-item-wrapper {
+    position: relative;
+}
+
+.file-system-item__guide-line {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background-color: color-mix(in srgb, var(--bg) 60%, var(--color));
+    pointer-events: none;
+    z-index: 1;
+}
+
 .file-system-item {
     display: flex;
     align-items: center;
@@ -92,6 +106,7 @@
     cursor: pointer;
     transition: background-color 0.1s;
     min-height: 22px;
+    position: relative;
 }
 
 .file-system-item:hover {
@@ -148,6 +163,10 @@
    New Item Input
    ---------------------------------------------------------------- */
 
+.file-explorer__new-item-wrapper {
+    position: relative;
+}
+
 .file-explorer__new-item {
     display: flex;
     align-items: center;
@@ -155,6 +174,7 @@
     padding: 2px 8px;
     background-color: var(--bg-highlight);
     min-height: 22px;
+    position: relative;
 }
 
 .file-explorer__new-item-input {

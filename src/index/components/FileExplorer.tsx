@@ -313,6 +313,18 @@ export const FileSystemItem = ({
     const isRenaming = renameContext?.isRenaming && renameContext.itemId === item.id;
     const paddingLeft = `${level * 16 + 8}px`;
 
+    // Calculate guide lines for this level
+    const guideLines = [];
+    for (let i = 0; i < level; i++) {
+        guideLines.push(
+            <div
+                key={i}
+                className="file-system-item__guide-line"
+                style={{ left: `${i * 16 + 15}px` }}
+            />
+        );
+    }
+
     const handleClick = useCallback(() => {
         if (isFolder) {
             onToggle(item.id);
@@ -335,7 +347,8 @@ export const FileSystemItem = ({
     );
 
     return (
-        <div>
+        <div className="file-system-item-wrapper">
+            {guideLines}
             <div
                 className={`file-system-item ${isSelected ? "file-system-item--selected" : ""}`}
                 style={{ paddingLeft }}
@@ -457,6 +470,18 @@ const NewItemInput = ({
 }: NewItemInputProps) => {
     const paddingLeft = `${level * 16 + 8}px`;
 
+    // Calculate guide lines
+    const guideLines = [];
+    for (let i = 0; i < level; i++) {
+        guideLines.push(
+            <div
+                key={i}
+                className="file-system-item__guide-line"
+                style={{ left: `${i * 16 + 15}px` }}
+            />
+        );
+    }
+
     const handleKeyDown = useCallback(
         (e: React.KeyboardEvent<HTMLInputElement>) => {
             if (e.key === "Enter") onCreateItem();
@@ -470,8 +495,10 @@ const NewItemInput = ({
     }, []);
 
     return (
-        <div className="file-explorer__new-item" style={{ paddingLeft }} onClick={handleClick}>
-            <div className="file-system-item__spacer" />
+        <div className="file-explorer__new-item-wrapper">
+            {guideLines}
+            <div className="file-explorer__new-item" style={{ paddingLeft }} onClick={handleClick}>
+                <div className="file-system-item__spacer" />
             <span className="file-system-item__icon">
                 <FileIcon
                     type={createType === "folder" ? "folder" : "file"}
@@ -489,6 +516,7 @@ const NewItemInput = ({
                 className="file-explorer__new-item-input"
                 placeholder={createType === "folder" ? "Folder name" : "File name"}
             />
+            </div>
         </div>
     );
 };
