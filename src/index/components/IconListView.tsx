@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useMemo, useCallback, type ReactNode } from "react";
 import "./IconListView.css";
 
 export interface IconListItem {
@@ -35,6 +35,7 @@ interface IconListViewProps {
     renderCustomContent?: (item: IconListItem, index: number) => ReactNode;
     layout?: "list" | "grid";
     gridColumns?: number; // Number of columns in the grid (default: 4)
+    gridDensity?: "compact" | "normal" | "comfortable"; // Grid density: compact (more items), normal (default), comfortable (fewer items)
     allowFixedItems?: boolean;
     iconSize?: "small" | "medium" | "large" | "xlarge"; // Global icon size
     iconLeft?: boolean; // Global icon left alignment
@@ -58,6 +59,7 @@ export default function IconListView({
     renderCustomContent,
     layout = "grid",
     gridColumns = 4,
+    gridDensity = "normal",
     allowFixedItems = true,
     iconSize = "medium",
     iconLeft = false,
@@ -67,7 +69,8 @@ export default function IconListView({
     backgroundColor = "var(--bg-light)",
     backgroundSvg = "",
 }: IconListViewProps) {
-    const getIconSizeInPercent = (size: "small" | "medium" | "large" | "xlarge"): string => {
+    // Memoize icon size calculations
+    const getIconSizeInPercent = useCallback((size: "small" | "medium" | "large" | "xlarge"): string => {
         const sizes = {
             small: "25%",
             medium: "45%",
@@ -75,9 +78,9 @@ export default function IconListView({
             xlarge: "85%",
         };
         return sizes[size];
-    };
+    }, []);
 
-    const getIconMaxSizeInPercent = (size: "small" | "medium" | "large" | "xlarge"): string => {
+    const getIconMaxSizeInPercent = useCallback((size: "small" | "medium" | "large" | "xlarge"): string => {
         const sizes = {
             small: "80px",
             medium: "135px",
@@ -85,27 +88,82 @@ export default function IconListView({
             xlarge: "255px",
         };
         return sizes[size];
-    };
+    }, []);
 
-    const handleItemClick = (item: IconListItem, index: number) => {
+    const handleItemClick = useCallback((item: IconListItem, index: number) => {
         if (!item.disabled && onItemClick) {
             onItemClick(item, index);
         }
-    };
+    }, [onItemClick]);
 
-    const handleItemDoubleClick = (item: IconListItem, index: number) => {
+    const handleItemDoubleClick = useCallback((item: IconListItem, index: number) => {
         if (!item.disabled && onItemDoubleClick) {
             onItemDoubleClick(item, index);
         }
-    };
+    }, [onItemDoubleClick]);
 
-    const handleItemHover = (item: IconListItem, index: number) => {
+    const handleItemHover = useCallback((item: IconListItem, index: number) => {
         if (!item.disabled && onItemHover) {
             onItemHover(item, index);
         }
-    };
+    }, [onItemHover]);
 
-    const renderIcon = (item: IconListItem) => {
+    // Memoize container style
+    const containerStyle = useMemo((): React.CSSProperties => {
+        const baseStyle: React.CSSProperties = {
+            backgroundColor: backgroundColor,
+            backgroundImage: backgroundSvg
+                ? `url('data:image/svg+xml;utf8,${encodeURIComponent(backgroundSvg)}')`
+                : undefined,
+        };
+
+        if (layout === "grid") {
+            // Define grid item sizes based on density
+            const densityConfig = {
+                compact: { minSize: "80px", maxSize: "120px", minRowSize: "90px" },
+                normal: { minSize: "100px", maxSize: "150px", minRowSize: "110px" },
+                comfortable: { minSize: "120px", maxSize: "180px", minRowSize: "130px" },
+            };
+
+            const config = densityConfig[gridDensity];
+
+            return {
+                ...baseStyle,
+                gridTemplateColumns: `repeat(auto-fit, minmax(${config.minSize}, ${config.maxSize}))`,
+                justifyContent: "center",
+                gridAutoRows: `minmax(${config.minRowSize}, auto)`,
+                gap: gap,
+            };
+        } else {
+            return baseStyle;
+        }
+    }, [backgroundColor, backgroundSvg, layout, gap, gridDensity]);
+
+    // Memoize processed items
+    const processedItems = useMemo((): IconListItem[] => {
+        if (layout !== "list" || !allowFixedItems) {
+            return items;
+        }
+
+        const adjustedItems = [...items];
+        const rowMap = new Map<number, number>();
+
+        adjustedItems.forEach((item) => {
+            if (item.gridRowStart !== undefined) {
+                const currentRow = item.gridRowStart;
+                const itemsInRow = rowMap.get(currentRow) || 0;
+
+                const newRowStart = currentRow + itemsInRow * (item.gridRowSpan || 1);
+                item.gridRowStart = newRowStart;
+
+                rowMap.set(currentRow, itemsInRow + 1);
+            }
+        });
+
+        return adjustedItems;
+    }, [items, layout, allowFixedItems]);
+
+    const renderIcon = useCallback((item: IconListItem) => {
         if (!item.icon) return null;
 
         const size = item.iconSize || iconSize;
@@ -123,58 +181,9 @@ export default function IconListView({
                 }}
             />
         );
-    };
+    }, [iconSize, iconClassName, getIconSizeInPercent, getIconMaxSizeInPercent]);
 
-    const getContainerStyle = (): React.CSSProperties => {
-        const baseStyle: React.CSSProperties = {
-            backgroundColor: backgroundColor,
-            backgroundImage: backgroundSvg
-                ? `url('data:image/svg+xml;utf8,${encodeURIComponent(backgroundSvg)}')`
-                : undefined,
-        };
-
-        if (layout === "grid") {
-            return {
-                ...baseStyle,
-                gridTemplateColumns: "repeat(auto-fit, minmax(100px, 150px))",
-                justifyContent: "center",
-                gridAutoRows: "minmax(110px, auto)",
-                gap: gap,
-            };
-        } else {
-            return baseStyle;
-        }
-    };
-
-    // Algorithm to organize items with the same row in list mode
-    const getAdjustedItems = (): IconListItem[] => {
-        if (layout !== "list" || !allowFixedItems) {
-            return items;
-        }
-
-        const adjustedItems = [...items];
-        const rowMap = new Map<number, number>(); // Map to track how many items are in each row
-
-        adjustedItems.forEach((item) => {
-            if (item.gridRowStart !== undefined) {
-                const currentRow = item.gridRowStart;
-                const itemsInRow = rowMap.get(currentRow) || 0;
-
-                // Calculate the new row position based on how many items already exist in that row
-                const newRowStart = currentRow + itemsInRow * (item.gridRowSpan || 1);
-
-                // Update the item with the adjusted row position
-                item.gridRowStart = newRowStart;
-
-                // Update the counter for this original row
-                rowMap.set(currentRow, itemsInRow + 1);
-            }
-        });
-
-        return adjustedItems;
-    };
-
-    const getItemStyle = (item: IconListItem): React.CSSProperties => {
+    const getItemStyle = useCallback((item: IconListItem): React.CSSProperties => {
         const baseStyle: React.CSSProperties = {};
 
         // Custom item background
@@ -232,9 +241,9 @@ export default function IconListView({
         }
 
         return baseStyle;
-    };
+    }, [layout, allowFixedItems, gridColumns]);
 
-    const getItemClasses = (item: IconListItem, isSelected: boolean, isDisabled: boolean): string => {
+    const getItemClasses = useCallback((item: IconListItem, isSelected: boolean, isDisabled: boolean): string => {
         const classes = [
             "icon-list-item",
             layout === "grid" ? "icon-list-item-grid" : "icon-list-item-list",
@@ -262,13 +271,11 @@ export default function IconListView({
         }
 
         return classes.join(" ");
-    };
-
-    const processedItems = getAdjustedItems();
+    }, [layout, itemClassName]);
 
     return (
         <div
-            style={getContainerStyle()}
+            style={containerStyle}
             className={`icon-list-container ${
                 layout === "grid" ? "icon-list-grid" : "icon-list-list"
             } ${className}`}

@@ -321,6 +321,7 @@ function App() {
                 selectedId={selectedId}
                 layout="grid"
                 iconSize="small"
+                gridDensity="compact"
                 allowFixedItems={true}
                 backgroundSvg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#3b82f6;stop-opacity:0.1"/><stop offset="100%" style="stop-color:#2563eb;stop-opacity:0.1"/></linearGradient></defs><rect fill="url(#grad1)" width="100" height="100"/><path fill="#3b82f6" opacity="0.15" d="M10 50 L50 10 L90 50 L90 90 H10 Z"/></svg>'
             />
