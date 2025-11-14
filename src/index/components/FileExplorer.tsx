@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef, memo } from "react";
 import "./FileExplorer.css";
 
 // ----------------------------------------------------------------
@@ -219,7 +219,7 @@ const DEFAULT_FILE_ICON = (
     </svg>
 );
 
-export const FileIcon = ({ type, isExpanded, lightMode = false }: FileIconProps) => {
+export const FileIcon = memo(({ type, isExpanded, lightMode = false }: FileIconProps) => {
     const [iconUrl, setIconUrl] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [resolvedType, setResolvedType] = useState<string>("file");
@@ -291,13 +291,13 @@ export const FileIcon = ({ type, isExpanded, lightMode = false }: FileIconProps)
     }
 
     return DEFAULT_FILE_ICON;
-};
+});
 
 // ----------------------------------------------------------------
 // FileSystemItem Component - Memoized for performance
 // ----------------------------------------------------------------
 
-export const FileSystemItem = ({
+export const FileSystemItem = memo(({
     item,
     level,
     onToggle,
@@ -311,19 +311,24 @@ export const FileSystemItem = ({
     const isSelected = selectedId === item.id;
     const showNewItemInput = creationContext?.isCreating && creationContext.targetFolderId === item.id;
     const isRenaming = renameContext?.isRenaming && renameContext.itemId === item.id;
-    const paddingLeft = `${level * 16 + 8}px`;
+    
+    // Memoize calculated values
+    const paddingLeft = useMemo(() => `${level * 16 + 8}px`, [level]);
 
-    // Calculate guide lines for this level
-    const guideLines = [];
-    for (let i = 0; i < level; i++) {
-        guideLines.push(
-            <div
-                key={i}
-                className="file-system-item__guide-line"
-                style={{ left: `${i * 16 + 15}px` }}
-            />
-        );
-    }
+    // Calculate guide lines for this level (memoized)
+    const guideLines = useMemo(() => {
+        const lines = [];
+        for (let i = 0; i < level; i++) {
+            lines.push(
+                <div
+                    key={i}
+                    className="file-system-item__guide-line"
+                    style={{ left: `${i * 16 + 15}px` }}
+                />
+            );
+        }
+        return lines;
+    }, [level]);
 
     const handleClick = useCallback(() => {
         if (isFolder) {
@@ -443,7 +448,25 @@ export const FileSystemItem = ({
             )}
         </div>
     );
-};
+}, (prevProps, nextProps) => {
+    // Custom comparison - return true if props are EQUAL (should NOT update)
+    // Check if children reference changed (important for nested updates)
+    const childrenChanged = prevProps.item.children !== nextProps.item.children;
+    
+    if (childrenChanged) return false; // Must update if children changed
+    
+    return (
+        prevProps.item.id === nextProps.item.id &&
+        prevProps.item.name === nextProps.item.name &&
+        prevProps.item.isExpanded === nextProps.item.isExpanded &&
+        prevProps.item.type === nextProps.item.type &&
+        prevProps.level === nextProps.level &&
+        prevProps.selectedId === nextProps.selectedId &&
+        prevProps.creationContext === nextProps.creationContext &&
+        prevProps.renameContext === nextProps.renameContext &&
+        prevProps.lightMode === nextProps.lightMode
+    );
+});
 
 // ----------------------------------------------------------------
 // NewItemInput Component - Separated for better organization
@@ -459,7 +482,7 @@ interface NewItemInputProps {
     lightMode?: boolean;
 }
 
-const NewItemInput = ({
+const NewItemInput = memo(({
     level,
     createType,
     newItemName,
@@ -468,19 +491,23 @@ const NewItemInput = ({
     onCancelCreate,
     lightMode = false,
 }: NewItemInputProps) => {
-    const paddingLeft = `${level * 16 + 8}px`;
+    // Memoize calculated values
+    const paddingLeft = useMemo(() => `${level * 16 + 8}px`, [level]);
 
-    // Calculate guide lines
-    const guideLines = [];
-    for (let i = 0; i < level; i++) {
-        guideLines.push(
-            <div
-                key={i}
-                className="file-system-item__guide-line"
-                style={{ left: `${i * 16 + 15}px` }}
-            />
-        );
-    }
+    // Calculate guide lines (memoized)
+    const guideLines = useMemo(() => {
+        const lines = [];
+        for (let i = 0; i < level; i++) {
+            lines.push(
+                <div
+                    key={i}
+                    className="file-system-item__guide-line"
+                    style={{ left: `${i * 16 + 15}px` }}
+                />
+            );
+        }
+        return lines;
+    }, [level]);
 
     const handleKeyDown = useCallback(
         (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -519,7 +546,7 @@ const NewItemInput = ({
             </div>
         </div>
     );
-};
+});
 
 // ----------------------------------------------------------------
 // FileExplorer Component - Main explorer with optimized state management
@@ -1090,7 +1117,7 @@ interface ExplorerHeaderProps {
     showCreateFolder?: boolean;
 }
 
-const ExplorerHeader = ({
+const ExplorerHeader = memo(({
     onCreateFile,
     onCreateFolder,
     showCreateFile = true,
@@ -1138,7 +1165,7 @@ const ExplorerHeader = ({
             )}
         </div>
     </div>
-);
+));
 
 // ----------------------------------------------------------------
 // ContextMenu Component - Separated for better organization
@@ -1155,7 +1182,7 @@ interface ContextMenuProps {
     onDelete: () => void;
 }
 
-const ContextMenu = ({
+const ContextMenu = memo(({
     x,
     y,
     itemId,
@@ -1203,4 +1230,4 @@ const ContextMenu = ({
             )}
         </div>
     );
-};
+});
